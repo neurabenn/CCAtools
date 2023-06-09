@@ -1,23 +1,48 @@
 from sklearn.cross_decomposition import CCA
 import seaborn as sns
+import importlib
 import numpy as np 
 from CCAtools.plotting.plotcca import CircleBarPlot
+from CCAtools.plotting.plotting_utils import returnEdges2Mat,calcEdgeSums
 import pandas as pd
 from scipy.stats import ttest_ind
+import matplotlib.pyplot as plt 
 from statsmodels.stats.multitest import multipletests
+import sys
 
 class CCA_class:
-    def __init__(self,X,Y,Xlabels,Ylabels,ncomps,flip=False):
+    def __init__(self,X,Y,Xlabels,Ylabels,ncomps,flip=False,nperms=0,mlab_eng=False):
         """Class containig a CCA object"""
         self.Xlabels=Xlabels
         self.Ylabels=Ylabels
-        
-        self.ccModel=CCA(n_components=ncomps)
-        self.ccModel=self.ccModel.fit(X,Y)
-        self.XCanonVar,self.YCanonVar=self.ccModel.transform(X,Y)
-        self.x_loadings_=self.ccModel.x_loadings_
-        self.y_loadings_=self.ccModel.y_loadings_
         self.flip=flip
+        self.nperms=nperms
+        eng=mlab_eng
+        if nperms!=0:
+            if importlib.util.find_spec('matlab')==None:
+                print('running with permutations uses the matlab engine\n make sure to also  add permCCA to your path \n https://github.com/andersonwinkler/PermCCA \n Will run CCA without permutations with sklearn ')
+                self.ccModel=CCA(n_components=ncomps)
+                self.ccModel=self.ccModel.fit(X,Y)
+                self.XCanonVar,self.YCanonVar=self.ccModel.transform(X,Y)
+                self.x_loadings_=self.ccModel.x_loadings_
+                self.y_loadings_=self.ccModel.y_loadings_
+            else: 
+                assert ('PermCCA' in eng.path())==True,'add PermCCA to your matlab path'
+                assert mlab_eng!=False,'pass an instance of a matlab runtime ' 
+
+                
+                X=np.ascontiguousarray(X)
+                Y=np.ascontiguousarray(Y)
+
+                mlab2np= lambda arr: np.asarray(arr).squeeze()
+                pfwer,r,A,B,U,V=eng.permcca(X,Y,nperms,nargout=6)
+
+                mlab_vars=[pfwer,r,A,B,U,V]
+                
+                self.pfwer,self.r,self.x_loadings_,self.y_loadings_,\
+                self.XCanonVar,self.YCanonVar=[mlab2np(mlab_vars[i]) for i in range(len(mlab_vars)) ]
+
+
     
     def BackProject(self,cv,pcaXloadings,pcaYloadings):
         """back project the CCA and PCA loadings
@@ -25,16 +50,16 @@ class CCA_class:
         pca loadings are the PCA loadings of the X   and Y CCA inputs respectively"""
         
         if self.flip==True:
-            x_edgeCorr=np.dot(pcaXloadings,(-1*self.ccModel.x_loadings_[:,cv].T))
+            x_edgeCorr=np.dot(pcaXloadings,(-1*self.x_loadings_[:,cv].T))
             self.x_edgeCorr=pd.DataFrame([dict(zip(self.Xlabels,x_edgeCorr))]).T
 
-            y_edgeCorr=np.dot(pcaYloadings.T,(-1*self.ccModel.y_loadings_[:,cv]))
+            y_edgeCorr=np.dot(pcaYloadings.T,(-1*self.y_loadings_[:,cv]))
             self.y_edgeCorr=pd.DataFrame([dict(zip(self.Ylabels,y_edgeCorr))]).T
         else:
-            x_edgeCorr=np.dot(pcaXloadings,self.ccModel.x_loadings_[:,cv].T)
+            x_edgeCorr=np.dot(pcaXloadings,self.x_loadings_[:,cv].T)
             self.x_edgeCorr=pd.DataFrame([dict(zip(self.Xlabels,x_edgeCorr))]).T
             
-            y_edgeCorr=np.dot(pcaYloadings.T,self.ccModel.y_loadings_[:,cv])
+            y_edgeCorr=np.dot(pcaYloadings.T,self.y_loadings_[:,cv])
             self.y_edgeCorr=pd.DataFrame([dict(zip(self.Ylabels,y_edgeCorr))]).T
         return self
     
@@ -51,11 +76,13 @@ class CCA_class:
 
     
     def plotBehavior(self,flip=False):
+    
+        plt.figure(figsize=(12,3.5))
+        ax=sns.barplot(data=self.y_edgeCorr.sort_values(by=0,ascending=False).T,palette='coolwarm_r')
+        ax.tick_params(axis='x', rotation=90)
         """plot behavior on a circle graph. Flip multiplies edges by -1"""
-        if flip==True:
-            CircleBarPlot(-1*self.y_edgeCorr,0)
-        else:   
-            return CircleBarPlot(self.y_edgeCorr,0)
+        return ax
+        # return CircleBarPlot(self.y_edgeCorr,0)
     
     def splitPop(self,cv,threshold,data,canon='x'):
         
@@ -156,8 +183,3 @@ class CCA_class:
             self.BehLess=self.pLbeh[Lpass]
         
         return self
-
-    
-    def permute(self,nperm):
-        """perform permutation testing on Cannonical Variates"""
-        pass

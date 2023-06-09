@@ -67,11 +67,6 @@ def calcEdgeSums(mat,labelFile,hemi,rm=None):
     
     return edgeSums,surf_data
 
-def new_line(sign='pos'):
-    if sign=='pos':
-        sign='RED'
-    else:
-        sign='BLUE'
-    
-    out=f'<polyLine coordinateSpace="SURFACE" backgroundCaretColor="NONE" backgroundCustomRGBA="0.000000;0.000000;0.000000;1.000000" foregroundCaretColor="{sign}" foregroundCustomRGBA="1.000000;1.000000;1.000000;1.000000" foregroundLineWidth="10" foregroundLineWidthPercentage="1" tabIndex="-1" windowIndex="-1" spacerTabIndex="-1,-1,-1" uniqueKey="2">'
+def new_line(color):
+    out=f'<polyLine coordinateSpace="SURFACE" backgroundCaretColor="NONE" backgroundCustomRGBA="0.000000;0.000000;0.000000;1.000000" foregroundCaretColor="CUSTOM" foregroundCustomRGBA="{color}" foregroundLineWidth="10" foregroundLineWidthPercentage="1" tabIndex="-1" windowIndex="-1" spacerTabIndex="-1,-1,-1" uniqueKey="2">'
     return out
