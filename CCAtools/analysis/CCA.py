@@ -11,7 +11,7 @@ from statsmodels.stats.multitest import multipletests
 import sys
 
 class CCA_class:
-    def __init__(self,X,Y,Xlabels,Ylabels,ncomps,flip=False,nperms=0,mlab_eng=False):
+    def __init__(self,X,Y,Xlabels,Ylabels,ncomps,flip=False,nperms=0,pset=0,mlab_eng=False):
         """Class containig a CCA object"""
         self.Xlabels=Xlabels
         self.Ylabels=Ylabels
@@ -29,13 +29,22 @@ class CCA_class:
             else: 
                 assert ('PermCCA' in eng.path())==True,'add PermCCA to your matlab path'
                 assert mlab_eng!=False,'pass an instance of a matlab runtime ' 
-
                 
                 X=np.ascontiguousarray(X)
                 Y=np.ascontiguousarray(Y)
 
                 mlab2np= lambda arr: np.asarray(arr).squeeze()
-                pfwer,r,A,B,U,V=eng.permcca(X,Y,nperms,nargout=6)
+
+                if pset!=0:
+                    import matlab
+                    print('running with defined permutation block')
+                    pset=np.loadtxt(pset)
+                    pset=matlab.double(pset)
+                    print('using permutation block')
+                    pfwer,r,A,B,U,V=eng.permcca(X,Y,nperms,[],[],[],0,pset,nargout=6)
+                else:
+                    print('no permuation block defined. using defaults of permCCA')
+                    pfwer,r,A,B,U,V=eng.permcca(X,Y,nperms,nargout=6)
 
                 mlab_vars=[pfwer,r,A,B,U,V]
                 
