@@ -29,7 +29,7 @@ class CCA_class:
             else: 
                 assert ('PermCCA' in eng.path())==True,'add PermCCA to your matlab path'
                 assert mlab_eng!=False,'pass an instance of a matlab runtime ' 
-                
+                import matlab
                 X=np.ascontiguousarray(X)
                 Y=np.ascontiguousarray(Y)
 
@@ -44,6 +44,8 @@ class CCA_class:
                     pfwer,r,A,B,U,V=eng.permcca(X,Y,nperms,[],[],[],0,pset,nargout=6)
                 else:
                     print('no permuation block defined. using defaults of permCCA')
+                    X=matlab.double(X.tolist())
+                    Y=matlab.double(Y.tolist())
                     pfwer,r,A,B,U,V=eng.permcca(X,Y,nperms,nargout=6)
 
                 mlab_vars=[pfwer,r,A,B,U,V]

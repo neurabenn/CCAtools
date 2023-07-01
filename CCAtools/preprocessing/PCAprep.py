@@ -13,10 +13,10 @@ def PCA_varimax(ncomps,data):
     print(f'{ncomps} components explains')
     
     print(f'{np.sum(pca.explained_variance_ratio_*100):.2f} % of the variance ')
-    f=plt.figure(figsize=(4,2))
-    sns.lineplot(data=pca.explained_variance_ratio_)
-    plt.xlabel('n components')
-    plt.ylabel('var explained')
+    #f=plt.figure(figsize=(4,2))
+    #sns.lineplot(data=pca.explained_variance_ratio_)
+    #plt.xlabel('n components')
+    #plt.ylabel('var explained')
     
     pcaLoadings=pca.components_.T*np.sqrt(pca.explained_variance_)
     
