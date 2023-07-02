@@ -9,6 +9,7 @@ from scipy.stats import ttest_ind
 import matplotlib.pyplot as plt 
 from statsmodels.stats.multitest import multipletests
 import sys
+import json
 
 class CCA_class:
     def __init__(self,X,Y,Xlabels,Ylabels,ncomps,flip=False,nperms=0,pset=0,mlab_eng=False):
