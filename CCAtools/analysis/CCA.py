@@ -194,3 +194,22 @@ class CCA_class:
             self.BehLess=self.pLbeh[Lpass]
         
         return self
+    
+    @classmethod
+    def from_json(cls, filename):
+        with open(filename, 'r') as f:
+            data = json.load(f)
+
+        instance = cls.__new__(cls)
+        
+        for key, value in data.items():
+            if isinstance(value, list):
+                value_np = np.array(value)
+                setattr(instance, key, value_np)
+            elif key in ['Xlabels', 'Ylabels']:
+                value_pd = pd.Index(value)
+                setattr(instance, key, value_pd)
+            else:
+                setattr(instance, key, value)
+
+        return instance
