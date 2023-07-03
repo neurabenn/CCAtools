@@ -42,6 +42,8 @@ class CCA_class:
                     pset=np.loadtxt(pset).tolist()
                     pset=matlab.double(pset)
                     print('using permutation block')
+                    X=matlab.double(X.tolist())
+                    Y=matlab.double(Y.tolist())
                     pfwer,r,A,B,U,V=eng.permcca(X,Y,nperms,[],[],[],0,pset,nargout=6)
                 else:
                     print('no permuation block defined. using defaults of permCCA')
