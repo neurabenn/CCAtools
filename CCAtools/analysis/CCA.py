@@ -39,7 +39,7 @@ class CCA_class:
                 if pset!=0:
                     import matlab
                     print('running with defined permutation block')
-                    pset=np.loadtxt(pset).tolist()
+                    pset=np.loadtxt(pset)[:,1:].tolist()
                     pset=matlab.double(pset)
                     print('using permutation block')
                     X=matlab.double(X.tolist())
