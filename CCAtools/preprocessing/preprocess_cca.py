@@ -109,7 +109,7 @@ def preprocess_SM(data,columns,Larea,Rarea,outl=False,method='raw'):
 
 def preprocessDists(data,subjIDX,confounds):
     
-    X=confounds
+    X=zscore(confounds)
     Y=np.asarray(data.T.iloc[subjIDX])
     
     # qt = QuantileTransformer(n_quantiles=50, random_state=42,output_distribution='normal')
