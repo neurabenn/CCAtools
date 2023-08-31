@@ -35,10 +35,12 @@ def zscore(x,ax=1):
     """z normalize on the first or second axis of the data set"""
     if ax==0:
         print('column wise normalization')
-        z=(x-np.mean(x,axis=0))/np.std(x,axis=0)
+        z=(x-np.nanmean(x,axis=0))/np.nanstd(x,axis=0)
     elif ax==1:
         print('row wise normalization')
-        z=(x.T-np.mean(x,axis=1))/np.std(x,axis=1)
+        z=(x.T-np.nanmean(x,axis=1))/np.nanstd(x,axis=1)
+    
+    z[~np.isfinite(z)]=0
     return z
 
 def set_confounds(data,Larea,Rarea):
