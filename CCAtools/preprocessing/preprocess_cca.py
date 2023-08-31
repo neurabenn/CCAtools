@@ -30,8 +30,15 @@ def prep_corr(dists,interest):
 
 def cube_root(x):
     return x**(1/3)
-def zscore(x):
-    z=(x-np.mean(x,axis=0))/np.std(x,axis=0)
+
+def zscore(x,ax=1):
+    """z normalize on the first or second axis of the data set"""
+    if ax==0:
+        print('column wise normalization')
+        z=(x-np.mean(x,axis=0))/np.std(x,axis=0)
+    elif ax==1:
+        print('row wise normalization')
+        z=(x.T-np.mean(x,axis=1))/np.std(x,axis=1)
     return z
 
 def set_confounds(data,Larea,Rarea):
