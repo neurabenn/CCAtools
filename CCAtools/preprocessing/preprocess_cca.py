@@ -13,6 +13,13 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import QuantileTransformer
 from scipy.linalg import null_space,svd
 
+
+import matlab
+
+# def add_mlabPAths(package_list):
+#     for i in package_list:
+#         eng.addpath(i)
+
 def norm_time(tme):
     tme=datetime.datetime.strptime(tme,'%H:%M:%S')
     minute=tme.minute/60
@@ -31,7 +38,22 @@ def prep_corr(dists,interest):
 def cube_root(x):
     return x**(1/3)
 
-def zscore(x,ax=1):
+def normal_eqn_python(X,Y):
+    X=np.asarray(X,dtype='float32')
+    Y=np.asarray(Y,dtype='float32')
+    params=np.linalg.pinv(np.dot(X.T,X)).dot(X.T).dot(Y)
+    resid=Y-np.dot(params.T,X.T).T
+    return resid
+
+
+# varsd=palm_inormal(vars); % Gaussianise
+def gauss_SM(data,eng):
+    mat_data=matlab.double(data.values.tolist()) ### they actually included the binary acquisition data in the gaussianization
+    gaussed=np.asarray(eng.palm_inormal(mat_data))
+    return gaussed
+
+
+def zscore(x,ax=0):
     """z normalize on the first or second axis of the data set"""
     if ax==0:
         print('column wise normalization')
@@ -43,30 +65,35 @@ def zscore(x,ax=1):
     z[~np.isfinite(z)]=0
     return z
 
-def set_confounds(data,Larea,Rarea):
-    
-    confounds=data[['Acquisition','Gender','Age']].T
-    for i in ['Acquisition','Gender','Age']:
-        confounds.loc[i]=LabelEncoder().fit_transform(confounds.T[i])
-    confounds=confounds.T
+def prep_confounds(confs,eng):
+    """ set the confounds up with gaussianization and normalization as done by smith et al 2015."""
+    assert ('palm' in eng.path())==True,'add PermCCA to your matlab path'
+    mat_data=matlab.double(confs.values.tolist()) ### they actually included the binary acquisition data in the gaussianization
+    print('gaussianizing')
+    gaussed=np.asarray(eng.palm_inormal(mat_data))
+    squared=gaussed[:,1:]**2   
+    ready_confs=np.hstack([gaussed,squared])
+    ready_confs=zscore(np.hstack([gaussed,squared]),ax=0)
+
+    return ready_confs
+
+def set_confounds(data,Larea,Rarea,mlab_eng):
+    """takes in a full data set of all HCP variables and extracts and preprocesses confounds to be regressed"""
+    eng=mlab_eng
+    confounds=data[['Acquisition','Age_in_Yrs','Height','Weight','BPSystolic','BPDiastolic',
+                    'FS_IntraCranial_Vol','FS_BrainSeg_Vol','Larea','Rarea']]
+    acq=LabelEncoder().fit_transform(confounds['Acquisition'])
+    acq[acq<2]=0
+    acq[acq>0]=1  
+    df=confounds.copy()
+    df['Acquisition']=acq
+    confounds=df
     confounds['FS_IntraCranial_Vol']=data['FS_IntraCranial_Vol'].map(cube_root)
     confounds['FS_BrainSeg_Vol']=data['FS_BrainSeg_Vol'].map(cube_root)
-    confounds['Larea']=Larea.values[0]
-    confounds['Rarea']=Rarea.values[0]
-    #### gaussianize the confounds 
-    confounds.drop(columns=i,inplace=True)
-
-    qt = QuantileTransformer(n_quantiles=50, random_state=42,output_distribution='normal')
-    gaussianized=qt.fit_transform(confounds.iloc[:,3:])
-    
-    #### add the squares 
-    squareTerms=confounds.iloc[:,3:]**2
-    
-    
-    z_scored=zscore(np.asarray(np.hstack([gaussianized,squareTerms]),dtype=np.float32))
-    
-    
-    return np.hstack([confounds.T.iloc[0:3].T.values,z_scored])
+    confounds['Larea']=np.sqrt(Larea.values[0])
+    confounds['Rarea']=np.sqrt(Rarea.values[0])
+    confounds=prep_confounds(confounds,eng)
+    return confounds
 
 ###### based on anderson winkler's CCA permutation paper 
 ##### doi: https://doi.org/10.1016/j.neuroimage.2020.117065
@@ -79,55 +106,31 @@ def huh_jhun(Z):
     # Compute the residual matrix by removing the nuisance variables
     return Q
 
-def preprocess_SM(data,columns,Larea,Rarea,outl=False,method='raw'):
-    """preprocess the subject measures removing their confounds. 
-    method 'raw' uses the confounds as are and 'hj' uses the huh_jhun method"""
-    nas=set(np.where(data[columns].isna()==True)[0])
-    IDX=set(range(len(data)))
-    # print(IDX)
-    if type(outl)==bool:
-        print('no outliers')
-        valid=list(IDX-nas)
-    else:
-        # print('yes outliers')
-        valid=list(IDX-nas)
-        print(f' there are {len(valid)} indices')
-        cln = [ele for idx, ele in enumerate(valid) if idx not in outl]
-        valid=cln
-        print(f'there are {len(valid)} indices')
+def preprocess_SM(data,confs,mlab_eng):
+    """preprocess the subject measures. Guassianize and remove confounds."""
+    eng=mlab_eng
+    assert ('palm' in eng.path())==True,'add PermCCA to your matlab path'
+    gaussed=gauss_SM(data,eng)
+    residuals=normal_eqn_python(confs,gaussed)
+    cleaned=zscore(residuals)
+    cleaned=pd.DataFrame(cleaned,index=data.index,columns=data.columns)
+    return cleaned
 
-    print(f'there are {len(valid)} valid indices ')
-    confounds=set_confounds(data,Larea,Rarea)
-    confounds=confounds[valid]
-
-    if method=='raw':
-        confounds=confounds #### they are already zscored
-    elif method=='hj':
-        confounds=zscore(huh_jhun(confounds))
-
-    Y=np.asarray(data.iloc[valid][columns].values)
+def preprocessDists(data,subIDX,confounds):
     
-    qt = QuantileTransformer(n_quantiles=50, random_state=42,output_distribution='normal')
-    Y=zscore(qt.fit_transform(Y))
+    if type(subIDX[0])==str:
+        print('converting strings to ints')
+        subIDXint=[int(i) for i in subIDX]
     
-    LinMdl=LinearRegression().fit(confounds,Y)
-    residuals=Y-LinMdl.predict(confounds)
-
-    return residuals,valid,confounds
-
-
-def preprocessDists(data,subjIDX,confounds):
-    
-    X=zscore(confounds)
-    Y=np.asarray(data.T.iloc[subjIDX])
-    
-    # qt = QuantileTransformer(n_quantiles=50, random_state=42,output_distribution='normal')
-    Y=zscore(Y)
-    
-    LinMdl=LinearRegression().fit(X,Y)
-    residuals=Y-LinMdl.predict(X)
-
-    return residuals
+    NET=data.copy()
+    NET=NET.loc[subIDXint]
+    amNET = np.abs(np.mean(NET, axis=0))
+    NET1 = NET/amNET
+    NET1=NET1-np.mean(NET1,axis=0)
+    NET1=NET1/np.std(NET1.values.flatten())
+    NET1=normal_eqn_python(confounds,NET1)
+    NET1=pd.DataFrame(NET1,columns=NET.columns,index=subIDX)
+    return NET1
 
 def preprocPCA(data,ncomps):
     data=zscore(data)

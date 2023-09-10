@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import matplotlib.cm as cm
 from .plotting_utils import *
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import spearmanr
 
 #### add visualizatoin functions here 
 
@@ -82,3 +85,120 @@ def writeWBedgeAnnot(outpath,edgeDict,hemi='L',sign='pos'):
             file.write('\t'+endLine+'\n')
         file.write('\t'+'</group>'+'\n')
         file.write('</AnnotationFile>')
+
+def CCA_BEHPlot(cca_inst):
+    
+    sm_ax=cca_inst.y_edgeWeights.sort_values(by=0)
+    sm_axNeg=np.abs(sm_ax[sm_ax[0]<0])[::-1]
+    sm_axPos=np.abs(sm_ax[sm_ax[0]>0])
+
+    cmap = plt.colormaps['Blues']
+    neg=sm_axNeg.values.squeeze()
+    norm_neg=np.abs(neg)/np.max(np.abs(neg))
+    Negcolors = cmap(norm_neg)
+
+    cmap = plt.colormaps['Reds']
+    pos=sm_axPos.values.squeeze()
+    norm_pos=np.abs(pos)/np.max(np.abs(pos))
+    Poscolors = cmap(norm_pos)
+
+    
+
+    # Create the first subplot
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 8))
+    joint_max=np.max(np.concatenate([neg,pos]))
+    # Plot the first bar plot in the left subplot (ax1)
+    y = [i * 0.9 for i in range(len(neg))]
+    ax1.barh(y, neg, height=0.8, align="edge", color=Negcolors)
+
+    # Customize the first subplot (ax1) as needed
+    # ax1.set_xlabel('X Label')
+    # ax1.set_ylabel('Y Label')
+    ax1.set_title('Negative Weights')
+
+    ax1.spines["left"].set_capstyle("butt")
+    ax1.xaxis.set_tick_params(labelbottom=False, labeltop=False, length=1)
+    ticks = y[0::10] + [y[-1]]  # Include highest value in y
+    labels = [f"{neg_val:.2f}" for neg_val in neg[0::10]] + [f"{neg[-1]:.2f}"]  # Format labels to two decimal places
+    ax1.set_yticks(ticks)
+
+    labels=[str(float(i)*-1) for i in labels]
+    ax1.set_yticklabels(labels,fontsize=16)
+
+
+    ### remove the spines 
+    ax1.spines["right"].set_visible(False)
+    ax1.spines["top"].set_visible(False)
+    ax1.spines["bottom"].set_visible(False)
+    ax1.spines["left"].set_lw(1.5)
+
+
+    #### add the names of the variables 
+
+    names=[i.replace('_',' ') for i in sm_axNeg.index ]
+    PAD = 0.01
+    for name, count, y_pos in zip(names, neg, y):
+        x = 0
+        color = "white"
+        path_effects = None
+    #     path_effects=[withStroke(linewidth=0.6, foreground="white")]
+        if count < 0.055:
+            x = count
+            color = Negcolors[-2]    
+    #         path_effects=[withStroke(linewidth=0.25, foreground="gray")]
+
+        ax1.text(
+            x + PAD, y_pos + 0.7/ 2, name, 
+            color=color, fontsize=10, fontfamily="Sans",fontweight='regular',va="center",
+            path_effects=path_effects
+        ) 
+
+    ############# subplot 2 ###################
+
+    ax2.set_title('Positive Weights')
+    y = [i * 0.9 for i in range(len(pos))]
+    ax2.barh(y, pos, height=0.8, align="edge", color=Poscolors)
+    ax2.xaxis.set_tick_params(labelbottom=False, labeltop=False, length=1)
+
+    ticks = y[0::8] + [y[-1]]  # Include highest value in y
+    labels = [f"{pos_val:.2f}" for pos_val in pos[0::8]] + [f"{pos[-1]:.2f}"]  # Format labels to two decimal places
+    ax2.set_yticks(ticks)
+
+    ax2.set_yticklabels(labels,fontsize=16)
+
+    ax2.tick_params(axis='y', labelright=True,labelleft=False)
+
+    ### remove the spines 
+    ax2.spines["right"].set_lw(1.5)
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["bottom"].set_visible(False)
+    ax2.spines["left"].set_visible(False)
+
+
+    #### add the names of the variables 
+
+    names=[i.replace('_',' ') for i in sm_axPos.index ]
+    PAD = 0.01
+    for name, count, y_pos in zip(names, pos, y):
+        x = 0
+        color = "white"
+        path_effects = None
+    #     path_effects=[withStroke(linewidth=0.6, foreground="white")]
+        if count < 0.04:
+            x = count
+            color = Poscolors[-8]    
+    #         path_effects=[withStroke(linewidth=0.25, foreground="gray")]
+
+        ax2.text(
+            x + PAD, y_pos + 0.7/ 2, name, 
+            color=color, fontsize=10, fontfamily="Sans",fontweight='regular',va="center",
+            path_effects=path_effects
+        ) 
+
+
+    plt.tight_layout()
+    fig.subplots_adjust(wspace=0.1)
+
+    # Display the figure
+    plt.tight_layout()
+    plt.suptitle('CCA Axis of Behavior')
