@@ -2,8 +2,8 @@ from sklearn.cross_decomposition import CCA
 import seaborn as sns
 import importlib
 import numpy as np 
-from CCAtools.plotting.plotcca import CircleBarPlot
-from CCAtools.plotting.plotting_utils import returnEdges2Mat,calcEdgeSums
+# from CCAtools.plotting.plotcca import CircleBarPlot
+# from CCAtools.plotting.plotting_utils import returnEdges2Mat,calcEdgeSums
 import pandas as pd
 from scipy.stats import ttest_ind
 import matplotlib.pyplot as plt 
@@ -29,10 +29,10 @@ class CCA_class:
         Y=np.ascontiguousarray(Y)
         mlab2np= lambda arr: np.asarray(arr).squeeze()
         if pset!=0:
-            print('running with defined permutation block')
-            pset=np.loadtxt(pset)[:,1:].tolist()
-            pset=matlab.double(pset)
-            print('using permutation block')
+            # print('running with defined permutation block')
+            # pset=np.loadtxt(pset)[:,1:].tolist()
+            # pset=matlab.double(pset)
+            print('using HCP defined permutation block')
             X=matlab.double(X.tolist())
             Y=matlab.double(Y.tolist())
             pfwer,r,A,B,U,V=eng.permcca(X,Y,nperms,[],[],[],0,pset,nargout=6)
@@ -68,6 +68,37 @@ class CCA_class:
             self.y_varloadings=pd.DataFrame([dict(zip(self.Ylabels,y_edgeWeights))]).T
         return self
     
+
+    def transform(self,sm_comps,dist_comps):
+        """project subjects outside the training data set into the CCA space. Also calculate cannonical correlations of transformed dataset """
+        self.XCanonVarProjected=np.dot(self.x_loadings_.T,dist_comps.T).T
+        self.YCanonVarProjected=np.dot(self.y_loadings_.T,sm_comps.T).T
+        
+        r_transformed_data=[]
+        for i in range(self.XCanonVarProjected.shape[1]):
+            r=np.corrcoef(self.XCanonVarProjected[:,i],self.YCanonVarProjected[:,i])[0,1]
+            r_transformed_data.append(r)
+        r_transformed_data=np.asarray(r_transformed_data)
+        self.r_transformed_data=r_transformed_data
+        return self
+    
+    def transform_BackProjectWeights(self,cv,SM,distData):
+        """calculate the weights for a given dimension of the tranformed data"""
+        y_g={}
+        for i in SM:
+            y_g[i]=np.corrcoef(SM[i],self.YCanonVarProjected[:,cv])[0,1]
+        self.y_TransformedEdgeWeights=pd.DataFrame([y_g]).T
+        
+        x_g={}
+        dist=distData.values.T
+        for i,j in enumerate(dist):
+            if np.std(j)==0:
+                x_g[i]=0
+            else:    
+                x_g[i]=np.corrcoef(j,self.XCanonVarProjected[:,cv])[0,1]
+        self.x_TransformedEdgeWeights=pd.DataFrame([x_g]).T
+        return self
+    
     def BackProjectWeights(self,cv,SM,distData):
         y_g={}
         for i in SM:
@@ -75,9 +106,12 @@ class CCA_class:
         self.y_edgeWeights=pd.DataFrame([y_g]).T
         
         x_g={}
-        dist=distData.reset_index().drop(columns='Subject').values.T
+        dist=distData.values.T
         for i,j in enumerate(dist):
-            x_g[i]=np.corrcoef(j,self.XCanonVar[:,cv])[0,1]
+            if np.std(j)==0:
+                x_g[i]=0
+            else:    
+                x_g[i]=np.corrcoef(j,self.XCanonVar[:,cv])[0,1]
         self.x_edgeWeights=pd.DataFrame([x_g]).T
         return self
 

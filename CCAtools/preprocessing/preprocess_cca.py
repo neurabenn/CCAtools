@@ -115,22 +115,52 @@ def preprocess_SM(data,confs,mlab_eng):
     cleaned=zscore(residuals)
     cleaned=pd.DataFrame(cleaned,index=data.index,columns=data.columns)
     return cleaned
-
 def preprocessDists(data,subIDX,confounds):
     
     if type(subIDX[0])==str:
         print('converting strings to ints')
         subIDXint=[int(i) for i in subIDX]
     
+    
+
     NET=data.copy()
     NET=NET.loc[subIDXint]
-    amNET = np.abs(np.mean(NET, axis=0))
-    NET1 = NET/amNET
+    dims=NET.shape
+    ##### check for vertices with no variance i.e guaranteed masks 
+    steady_masks=np.where(np.sum(NET)==0)[0]
+    valididx=np.where(np.sum(NET)!=0)[0]
+    
+    if len(steady_masks)!=0:
+        NET=NET.iloc[:,valididx]
+        
+#     amNET = np.abs(np.nanmean(NET, axis=0))
+    NET1 = NET#/amNET
     NET1=NET1-np.mean(NET1,axis=0)
-    NET1=NET1/np.std(NET1.values.flatten())
+    NET1=NET1/np.nanstd(NET1.values.flatten())
     NET1=normal_eqn_python(confounds,NET1)
     NET1=pd.DataFrame(NET1,columns=NET.columns,index=subIDX)
+    
+    if len(steady_masks)!=0:
+        out=np.zeros(dims)
+        out[:,valididx]=NET1.values
+        NET1=pd.DataFrame(out,index=NET.index)
+    
     return NET1
+# def preprocessDists(data,subIDX,confounds):
+    
+#     if type(subIDX[0])==str:
+#         print('converting strings to ints')
+#         subIDXint=[int(i) for i in subIDX]
+    
+#     NET=data.copy()
+#     NET=NET.loc[subIDXint]
+#     amNET = np.abs(np.nanmean(NET, axis=0))
+#     NET1 = NET/amNET
+#     NET1=NET1-np.mean(NET1,axis=0)
+#     NET1=NET1/np.nanstd(NET1.values.flatten())
+#     NET1=normal_eqn_python(confounds,NET1)
+#     NET1=pd.DataFrame(NET1,columns=NET.columns,index=subIDX)
+#     return NET1
 
 def preprocPCA(data,ncomps):
     data=zscore(data)
