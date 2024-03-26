@@ -56,10 +56,10 @@ def gauss_SM(data,eng):
 def zscore(x,ax=0):
     """z normalize on the first or second axis of the data set"""
     if ax==0:
-        print('column wise normalization')
+        # print('column wise normalization')
         z=(x-np.nanmean(x,axis=0))/np.nanstd(x,axis=0)
     elif ax==1:
-        print('row wise normalization')
+        # print('row wise normalization')
         z=(x.T-np.nanmean(x,axis=1))/np.nanstd(x,axis=1)
     
     z[~np.isfinite(z)]=0
@@ -69,7 +69,7 @@ def prep_confounds(confs,eng):
     """ set the confounds up with gaussianization and normalization as done by smith et al 2015."""
     assert ('palm' in eng.path())==True,'add PermCCA to your matlab path'
     mat_data=matlab.double(confs.values.tolist()) ### they actually included the binary acquisition data in the gaussianization
-    print('gaussianizing')
+    # print('gaussianizing')
     gaussed=np.asarray(eng.palm_inormal(mat_data))
     squared=gaussed[:,1:]**2   
     ready_confs=np.hstack([gaussed,squared])
@@ -182,7 +182,7 @@ def loadDataMatrix(filepath,hemi,clean=False):
         subjectIDX=clean[0]
         confounds=clean[1]
         
-        print('regressing out the confounds')
+        # print('regressing out the confounds')
         cleanData=preprocessDists(data,subjectIDX,confounds)
         
         return data,cleanData
